@@ -43,7 +43,7 @@ void resource_demo() {
 Ofcourse RAII has the same limitations of delimited scoping as the try with resource pattern. C++ 11 introduces a construct called move semantics to get around this.
 ```c++
 void resource_consumer(unique_ptr<Resource> resource_ptr){
-   cout << "Ownership of the resource was transferred to resource_consumer" << endl;
+   cout << "Ownership of the resource transferred to resource_consumer" << endl;
    cout << "The resource will be deleted on return of the method" << endl;
 }
 

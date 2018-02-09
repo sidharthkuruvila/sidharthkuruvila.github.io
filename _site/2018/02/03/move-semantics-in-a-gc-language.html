@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>Move semantics in a gc language</title>
-  <meta name="description" content="I’ve been learning c++ lately. The thing that kept me away from the language for so long is the lack of automatic memory management. As a java programmer you...">
+  <meta name="description" content="I’ve been learning c++ lately. The thing that kept me away from the language for a long time is the lack of automatic memory management. As a java programmer...">
 
   <link rel="stylesheet" href="/assets/main.css">
   <link rel="canonical" href="http://localhost:4000/2018/02/03/move-semantics-in-a-gc-language.html">
@@ -85,11 +85,11 @@
   </header>
 
   <div class="post-content" itemprop="articleBody">
-    <p>I’ve been learning c++ lately. The thing that kept me away from the language for so long is the lack of automatic memory management. As a java programmer you get used to certain luxuries and not worrying about whether you are leaking memory is one of them.</p>
+    <p>I’ve been learning c++ lately. The thing that kept me away from the language for a long time is the lack of automatic memory management. As a java programmer you get used to certain luxuries and not worrying about whether you are leaking memory is one of them.</p>
 
-<p>The garbage collector doesn’t manage all resources though, which is why we still have to explicitly close open files. This is quite easy to do thanks to the try with resource pattern that we use in kotlin and java.</p>
+<p>The garbage collector doesn’t manage all resources though, which is why we still have to explicitly close open files. This is quite easy to do thanks to the try with resource pattern available in both kotlin and java.</p>
 
-<p>(I’m going to use kotlin because the syntax is a bit simpler, but the examples should be easily translated to java)</p>
+<p>(I’m going to use kotlin because the syntax is simpler, but the examples should be easily translated to java)</p>
 
 <div class="language-kotlin highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">FileInputStream</span><span class="p">(</span><span class="s">"file.txt"</span><span class="p">).</span><span class="n">use</span> <span class="p">{</span>
     <span class="n">println</span><span class="p">(</span><span class="s">"char = "</span> <span class="p">+</span> <span class="p">(</span><span class="n">char</span><span class="p">)</span><span class="n">it</span><span class="p">.</span><span class="n">read</span><span class="p">());</span>
@@ -97,9 +97,9 @@
 <span class="c1">//The file object is no longer in scope.
 </span></code></pre></div></div>
 
-<p>There are limitations to this approach, the scope of the file objected is delimited by curly braces. And it is not possible to pass the function object beyond the curly braces without bad things happening. You get used to living without the ability.</p>
+<p>However, there are limitations to this approach, the scope of the file object is delimited by curly braces. And it is not possible to pass the function object beyond the curly braces without bad things happening. You get used to living without the ability.</p>
 
-<p>C++ runs into similar problems of resource management, in c++’ case it applies to any object allocated on the heap. And c++ has a similar solution to the problem in the form of a pattern called RAII. With RAII an object on the stack will call its own destructor method before going out of scope.</p>
+<p>C++ runs into similar problems of resource management, in c++’s case it applies to any object allocated on the heap. And c++ has a similar solution to the problem in the form of a pattern called <a href="https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization">RAII</a>. With RAII an object on the stack will call its own destructor method before going out of scope.</p>
 
 <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Resource</span> <span class="p">{</span>
    <span class="kt">int</span> <span class="n">n</span><span class="p">;</span>
@@ -121,6 +121,7 @@
 </code></pre></div></div>
 
 <p>Ofcourse RAII has the same limitations of delimited scoping as the try with resource pattern. C++ 11 introduces a construct called move semantics to get around this.</p>
+
 <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">resource_consumer</span><span class="p">(</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Resource</span><span class="o">&gt;</span> <span class="n">resource_ptr</span><span class="p">){</span>
    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Ownership of the resource transferred to resource_consumer"</span> <span class="o">&lt;&lt;</span> <span class="n">endl</span><span class="p">;</span>
    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"The resource will be deleted on return of the method"</span> <span class="o">&lt;&lt;</span> <span class="n">endl</span><span class="p">;</span>
@@ -139,9 +140,8 @@
 
 <p>This can be done by introducing a new class <code class="highlighter-rouge">Movable&lt;T&gt;</code> that demonstrates semantics similar to RAII for variables using the close method instead of a destructor.</p>
 
-<p>Movable fields are a bit tricky, it would be possible to automatically rewrite the close method in a class with movable fields to close them when the object itself is closed, but there could be ordering issues.</p>
-
 <p>The c++ example can then be written as.</p>
+
 <div class="language-kotlin highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fun</span> <span class="nf">resource_consumer</span><span class="p">(</span><span class="n">resource</span><span class="p">:</span> <span class="n">Movable</span><span class="p">&lt;</span><span class="n">Resource</span><span class="p">&gt;){</span>
    <span class="n">println</span><span class="p">(</span><span class="s">"The resource will close on return"</span><span class="p">);</span>
 <span class="p">}</span>
@@ -168,7 +168,9 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Overloading class behaviour the way movable works might make code harder to read, on the other hand new keyword would simply clutter the syntax.</p>
+<p>Movable fields are a bit tricky, it would be possible to automatically rewrite the close method in a class with movable fields to close them when the object itself is closed, but there could be ordering issues.</p>
+
+<p>Overloading class behaviour the way movable works might make code harder to read, on the other hand introducing a new keyword would simply clutter the syntax.</p>
 
 <p>Another possible extension in the same vein would be <code class="highlighter-rouge">Sharable&lt;T&gt;</code> to add implicit reference counted resources.</p>
 
